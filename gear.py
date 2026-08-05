@@ -1,28 +1,26 @@
-
-Gear · PY
 #!/usr/bin/env python3
 """
 Gear Locker — a tiny inventory server that runs on your own machine.
- 
+
 Start it:
     python3 gear.py
- 
+
 Then open http://127.0.0.1:8000 in your browser.
- 
+
 Everything is saved as plain files in the folder beside this script:
- 
+
     data/gear.json      your whole inventory, human-readable
     data/photos/*.jpg   one photo per item
- 
+
 Back it up by copying the `data` folder. Read or edit gear.json in any
 text editor. Standard library only — nothing to install.
- 
+
 Options:
     --port 8000         port to listen on
     --host 127.0.0.1    use 0.0.0.0 to reach it from your phone on the same wifi
     --data ./data       where to keep gear.json and photos
 """
- 
+
 import argparse
 import base64
 import json
@@ -33,25 +31,25 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
- 
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOCK = threading.Lock()
 MAX_BODY = 32 * 1024 * 1024          # generous ceiling for a photo upload
 DATA_URL = re.compile(r"^data:image/[a-z0-9.+-]+;base64,(.+)$", re.I | re.S)
 BLANK = {"version": 1, "metric": True, "customCats": [], "items": []}
- 
+
 DATA_DIR = os.path.join(HERE, "data")
 JSON_PATH = os.path.join(DATA_DIR, "gear.json")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
- 
- 
+
+
 # ----------------------------------------------------------------------
 # Reading and writing the JSON file
 # ----------------------------------------------------------------------
 def blank():
     return {"version": 1, "metric": True, "customCats": [], "items": []}
- 
- 
+
+
 def load():
     """Read gear.json. Never destroy a file we can't parse."""
     if not os.path.exists(JSON_PATH):
@@ -71,7 +69,7 @@ def load():
         print("\n  !! Could not read %s (%s)." % (JSON_PATH, e))
         print("  !! Starting with an empty locker; %s\n" % note)
         return blank()
- 
+
     out = blank()
     out["metric"] = bool(raw.get("metric", True))
     if isinstance(raw.get("customCats"), list):
@@ -81,8 +79,8 @@ def load():
         out["items"] = [clean(i) for i in raw["items"]
                         if isinstance(i, dict) and str(i.get("name", "")).strip()]
     return out
- 
- 
+
+
 def persist(cat):
     """Write the file atomically, so a crash mid-save can't corrupt it."""
     os.makedirs(PHOTO_DIR, exist_ok=True)
@@ -92,36 +90,36 @@ def persist(cat):
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, JSON_PATH)
- 
- 
+
+
 # ----------------------------------------------------------------------
 # Items and photos
 # ----------------------------------------------------------------------
 def new_id():
     return "%s%s" % (int(time.time() * 1000), os.urandom(2).hex())
- 
- 
+
+
 def safe_id(value):
     """Strip anything that could escape the photos folder."""
     return re.sub(r"[^A-Za-z0-9_-]", "", str(value or ""))[:48]
- 
- 
+
+
 def photo_path(item_id):
     return os.path.join(PHOTO_DIR, safe_id(item_id) + ".jpg")
- 
- 
+
+
 def clean(raw, prev=None):
     """Coerce whatever the browser sent into a well-formed record."""
     now = int(time.time() * 1000)
- 
+
     def text(value, limit):
         return str("" if value is None else value).strip()[:limit]
- 
+
     try:
         grams = max(0.0, float(raw.get("g") or 0))
     except (TypeError, ValueError):
         grams = 0.0
- 
+
     item_id = safe_id(raw.get("id")) or new_id()
     if prev:
         added = int(prev.get("added") or now)
@@ -130,7 +128,7 @@ def clean(raw, prev=None):
             added = int(raw.get("added") or now)
         except (TypeError, ValueError):
             added = now
- 
+
     return {
         "id": item_id,
         "added": added,
@@ -142,8 +140,8 @@ def clean(raw, prev=None):
         "g": grams,
         "photo": bool(raw.get("photo")),
     }
- 
- 
+
+
 def write_photo(item_id, data_url):
     """Decode a browser data URL and drop it on disk as a .jpg."""
     match = DATA_URL.match(data_url or "")
@@ -282,18 +280,18 @@ def build_export():
         "customCats": cat["customCats"],
         "items": items,
     }
- 
- 
+
+
 OPS = {"save": op_save, "delete": op_delete, "meta": op_meta, "import": op_import}
- 
- 
+
+
 # ----------------------------------------------------------------------
 # HTTP
 # ----------------------------------------------------------------------
 class Locker(BaseHTTPRequestHandler):
     server_version = "GearLocker/1.0"
     protocol_version = "HTTP/1.1"
- 
+
     # -- plumbing ------------------------------------------------------
     def reply(self, status, body=b"", ctype="text/plain; charset=utf-8", headers=None):
         if isinstance(body, str):
@@ -309,11 +307,11 @@ class Locker(BaseHTTPRequestHandler):
                 self.wfile.write(body)
         except (BrokenPipeError, ConnectionResetError):
             pass                      # browser navigated away mid-response
- 
+
     def reply_json(self, data, status=200):
         self.reply(status, json.dumps(data), "application/json; charset=utf-8",
                    {"Cache-Control": "no-store"})
- 
+
     def reply_file(self, path, ctype, headers=None):
         try:
             with open(path, "rb") as f:
@@ -321,7 +319,7 @@ class Locker(BaseHTTPRequestHandler):
         except OSError:
             return self.reply(404, "Not found")
         return self.reply(200, body, ctype, headers)
- 
+
     def read_body(self):
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -332,37 +330,37 @@ class Locker(BaseHTTPRequestHandler):
         if length > MAX_BODY:
             raise ValueError("that upload is too large")
         return json.loads(self.rfile.read(length).decode("utf-8"))
- 
+
     def log_message(self, fmt, *args):
         pass                          # keep the terminal quiet
- 
+
     def log_error(self, fmt, *args):
         sys.stderr.write("  http: %s\n" % (fmt % args))
- 
+
     # -- routes --------------------------------------------------------
     def do_GET(self):
         path = urlparse(self.path).path
- 
+
         if path in ("/", "/index.html"):
             page = os.path.join(HERE, "index.html")
             if not os.path.exists(page):
                 return self.reply(500, "index.html is missing from " + HERE)
             return self.reply_file(page, "text/html; charset=utf-8",
                                    {"Cache-Control": "no-cache"})
- 
+
         if path == "/api/state":
             with LOCK:
                 cat = load()
             cat["dataFile"] = os.path.relpath(JSON_PATH, HERE)
             return self.reply_json(cat)
- 
+
         if path == "/api/export":
             name = "gear-locker-%s.json" % time.strftime("%Y-%m-%d")
             return self.reply(
                 200, json.dumps(build_export(), indent=2, ensure_ascii=False),
                 "application/json; charset=utf-8",
                 {"Content-Disposition": 'attachment; filename="%s"' % name})
- 
+
         if path.startswith("/photos/"):
             name = path[len("/photos/"):]
             if not name.endswith(".jpg"):
@@ -370,15 +368,15 @@ class Locker(BaseHTTPRequestHandler):
             return self.reply_file(
                 os.path.join(PHOTO_DIR, safe_id(name[:-4]) + ".jpg"), "image/jpeg",
                 {"Cache-Control": "public, max-age=31536000, immutable"})
- 
+
         if path == "/favicon.ico":
             return self.reply(204)
- 
+
         return self.reply(404, "Not found")
- 
+
     def do_HEAD(self):
         self.do_GET()
- 
+
     def do_POST(self):
         path = urlparse(self.path).path
         if not path.startswith("/api/"):
@@ -394,23 +392,23 @@ class Locker(BaseHTTPRequestHandler):
             sys.stderr.write("  error: %r\n" % (e,))
             return self.reply_json({"error": "the server could not save that"}, 500)
         return self.reply_json(result)
- 
- 
+
+
 # ----------------------------------------------------------------------
 def main():
     global DATA_DIR, JSON_PATH, PHOTO_DIR
- 
+
     ap = argparse.ArgumentParser(description="Run your Gear Locker.")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1",
                     help="0.0.0.0 to allow other devices on your network")
     ap.add_argument("--data", default=DATA_DIR, help="folder for gear.json and photos")
     args = ap.parse_args()
- 
+
     DATA_DIR = os.path.abspath(args.data)
     JSON_PATH = os.path.join(DATA_DIR, "gear.json")
     PHOTO_DIR = os.path.join(DATA_DIR, "photos")
- 
+
     try:
         os.makedirs(PHOTO_DIR, exist_ok=True)
         probe = os.path.join(DATA_DIR, ".writable")
@@ -424,18 +422,18 @@ def main():
         print("  different user than the one inside the container. Rebuild with:")
         print("      UID=$(id -u) GID=$(id -g) docker compose build\n")
         sys.exit(1)
- 
+
     cat = load()
     if not os.path.exists(JSON_PATH):
         persist(cat)
- 
+
     try:
         server = ThreadingHTTPServer((args.host, args.port), Locker)
     except OSError as e:
         print("\n  Could not start on %s:%s — %s" % (args.host, args.port, e))
         print("  Something else may be using that port. Try: python3 gear.py --port 8001\n")
         sys.exit(1)
- 
+
     shown = "127.0.0.1" if args.host in ("0.0.0.0", "") else args.host
     print("\n  Gear Locker is running.")
     print("  Open       http://%s:%s" % (shown, args.port))
@@ -444,15 +442,14 @@ def main():
     if args.host == "0.0.0.0":
         print("  Reachable from other devices on this network.")
     print("  Stop with  Ctrl-C\n")
- 
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("  Stopped. Your locker is saved in %s\n" % JSON_PATH)
     finally:
         server.server_close()
- 
- 
+
+
 if __name__ == "__main__":
     main()
- 
