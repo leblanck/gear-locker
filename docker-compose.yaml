@@ -1,0 +1,24 @@
+services:
+  gear-locker:
+    build:
+      context: .
+      args:
+        # Override so the container writes as you:
+        #   UID=$(id -u) GID=$(id -g) docker compose build
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    container_name: gear-locker
+    restart: unless-stopped
+
+    # Runs a real init as PID 1, so `docker compose stop` shuts down
+    # immediately instead of waiting out the 10-second kill timer.
+    init: true
+
+    # Change the left-hand number to serve on a different port.
+    ports:
+      - "${GEAR_PORT:-8000}:8000"
+
+    # A plain folder, not a named volume, so gear.json stays somewhere
+    # you can actually open and back up.
+    volumes:
+      - ./data:/app/data

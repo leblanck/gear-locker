@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gear Locker</title>
+<style>
+/* ============================================================
+   GEAR LOCKER — anodized / equipment-tag direction
+   Palette: brushed aluminium surfaces, deep slate ink,
+   hi-vis hardware yellow used only for live/active state.
+   ============================================================ */
+:root{
+  --alu:        #E4E9EC;
+  --alu-deep:   #D3DBE1;
+  --alu-line:   #B9C5CD;
+  --card:       #F4F7F8;
+  --ink:        #16242C;
+  --slate:      #5A6E7A;
+  --signal:     #E9B10C;
+  --pine:       #2E5A4B;
+  --danger:     #A63A28;
+
+  --display: "Avenir Next Condensed","Roboto Condensed","Arial Narrow",
+             "Helvetica Neue",system-ui,sans-serif;
+  --body: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono: ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --pad: clamp(16px,4vw,40px);
+}
+*{box-sizing:border-box}
+s{text-decoration:none}
+html,body{margin:0}
+body{
+  background:var(--alu);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* ---------- shared bits ---------- */
+.stamp{
+  font-family:var(--display);
+  text-transform:uppercase;
+  letter-spacing:.09em;
+  font-weight:700;
+}
+.code{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.wrap{max-width:1320px;margin:0 auto;padding:0 var(--pad)}
+
+/* ---------- masthead ---------- */
+.mast{
+  border-bottom:1.5px solid var(--ink);
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(22,36,44,.045) 0 1px, transparent 1px 7px),
+    var(--alu-deep);
+}
+.mast-in{
+  display:flex;flex-wrap:wrap;align-items:flex-end;
+  gap:16px 24px;padding:26px 0 18px;
+}
+.mark{flex:1 1 240px;min-width:0}
+.mark h1{
+  font-family:var(--display);
+  text-transform:uppercase;
+  font-weight:700;
+  font-size:clamp(30px,6.5vw,52px);
+  letter-spacing:.03em;
+  line-height:.94;
+  margin:0;
+}
+.mark h1 em{font-style:normal;color:var(--slate)}
+.mark p{margin:6px 0 0;color:var(--slate);font-size:13px;max-width:44ch}
+.mast-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- buttons ---------- */
+.btn{
+  font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;font-size:14px;
+  border:1.5px solid var(--ink);background:transparent;color:var(--ink);
+  padding:9px 15px;border-radius:2px;
+  transition:background .13s ease,color .13s ease,transform .13s ease,box-shadow .13s ease;
+}
+.btn:hover{background:var(--ink);color:var(--alu)}
+.btn-key{background:var(--signal);border-color:var(--ink);
+  box-shadow:2.5px 2.5px 0 var(--ink)}
+.btn-key:hover{background:var(--ink);color:var(--signal);box-shadow:none;
+  transform:translate(2px,2px)}
+.btn-quiet{border-color:var(--alu-line);color:var(--slate);font-size:12.5px;padding:7px 11px}
+.btn-quiet:hover{background:var(--slate);color:var(--alu);border-color:var(--slate)}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+
+/* ---------- signature: the ledger rail ---------- */
+.rail{border-bottom:1px solid var(--alu-line);background:var(--alu-deep);padding-bottom:14px}
+.tally{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 22px;
+  padding:14px 0 10px;
+}
+.tally b{font-family:var(--display);font-size:26px;letter-spacing:.02em;font-weight:700}
+.tally span{color:var(--slate)}
+.tally .unit-flip{margin-left:auto}
+.bar{
+  display:flex;height:12px;width:100%;
+  border:1.5px solid var(--ink);background:
+    repeating-linear-gradient(45deg,transparent 0 3px,rgba(22,36,44,.09) 3px 6px);
+}
+.bar i{display:block;height:100%;border-right:1.5px solid var(--ink);transition:width .35s ease}
+.bar i:last-child{border-right:0}
+.bar-key{
+  display:flex;flex-wrap:wrap;gap:3px 16px;margin-top:7px;
+  color:var(--slate);
+}
+.bar-key span{display:inline-flex;align-items:center;gap:6px}
+.bar-key s{width:9px;height:9px;display:inline-block;border:1px solid var(--ink);text-decoration:none}
+
+/* ---------- controls ---------- */
+.controls{padding:16px 0 0}
+.control-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search{position:relative;flex:1 1 240px;min-width:0}
+.search input{
+  width:100%;font:inherit;color:var(--ink);
+  background:var(--card);border:1.5px solid var(--ink);border-radius:2px;
+  padding:10px 12px 10px 38px;
+}
+.search input::placeholder{color:var(--slate)}
+.search::before{
+  content:"";position:absolute;left:13px;top:50%;width:11px;height:11px;
+  margin-top:-7px;border:1.8px solid var(--slate);border-radius:50%;
+}
+.search::after{
+  content:"";position:absolute;left:22px;top:50%;width:7px;height:1.8px;
+  margin-top:4px;background:var(--slate);transform:rotate(45deg);
+}
+select{
+  font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink);background:var(--card);
+  border:1.5px solid var(--ink);border-radius:2px;padding:10px 11px;
+}
+.seg{display:flex;border:1.5px solid var(--ink);border-radius:2px;overflow:hidden}
+.seg button{
+  border:0;background:var(--card);padding:9px 13px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--alu)}
+
+/* ---------- category chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px;padding:14px 0 20px}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1.5px solid var(--alu-line);background:var(--card);
+  border-radius:2px;padding:6px 10px;
+}
+.chip .nm{font-family:var(--display);text-transform:uppercase;letter-spacing:.07em;
+  font-weight:700;font-size:13px}
+.chip .n{font-family:var(--mono);font-size:10.5px;color:var(--slate)}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--alu)}
+.chip[aria-pressed="true"] .n{color:var(--signal)}
+.chip .swatch{width:9px;height:9px;border:1px solid currentColor}
+
+/* ---------- grid ---------- */
+main{padding-bottom:64px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(216px,1fr))}
+.item{
+  background:var(--card);border:1.5px solid var(--ink);border-radius:2px;
+  display:flex;flex-direction:column;text-align:left;padding:0;overflow:hidden;
+  animation:in .26s ease;
+}
+@keyframes in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.item:hover{box-shadow:3px 3px 0 var(--ink);transform:translate(-1px,-1px)}
+.item:hover .shot img{transform:scale(1.035)}
+.shot{
+  position:relative;aspect-ratio:4/3;overflow:hidden;
+  border-bottom:1.5px solid var(--ink);background:var(--alu-deep);
+}
+.shot img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s ease}
+.shot.empty{
+  display:grid;place-items:center;
+  background:
+    repeating-linear-gradient(135deg,transparent 0 6px,rgba(22,36,44,.05) 6px 12px),
+    var(--alu-deep);
+}
+.shot.empty span{
+  font-family:var(--display);font-size:34px;letter-spacing:.12em;
+  color:var(--alu-line);font-weight:700;
+}
+.tag{padding:11px 12px 13px;display:flex;flex-direction:column;gap:3px;flex:1}
+.tag .brand{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--slate)}
+.tag .name{font-family:var(--display);text-transform:uppercase;font-weight:700;
+  font-size:18px;letter-spacing:.02em;line-height:1.08}
+.tag .desc{display:block;font-size:12.5px;color:var(--slate);margin:4px 0 0;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tag .foot{
+  display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:10px;
+  border-top:1px dashed var(--alu-line);
+}
+.tag .foot .cat{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;
+  display:inline-flex;align-items:center;gap:6px}
+.tag .foot .wt{margin-left:auto;font-family:var(--mono);font-size:11px}
+
+/* ---------- list view ---------- */
+.list{border:1.5px solid var(--ink);background:var(--card);border-radius:2px;overflow:hidden}
+.row{
+  display:flex;align-items:center;gap:12px;width:100%;
+  background:none;border:0;border-bottom:1px solid var(--alu-line);
+  padding:9px 12px;text-align:left;
+}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--alu-deep)}
+.row .th{width:46px;height:46px;flex:0 0 46px;border:1px solid var(--alu-line);
+  object-fit:cover;background:var(--alu-deep)}
+.row .th.empty{display:grid;place-items:center;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.06em;color:var(--slate)}
+.row .who{min-width:0;flex:1}
+.row .who b{font-family:var(--display);text-transform:uppercase;letter-spacing:.03em;
+  font-weight:700;font-size:16px;display:block;line-height:1.1}
+.row .who i{font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--slate)}
+.row .rc{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--slate)}
+.row .rw{font-family:var(--mono);font-size:11.5px;width:74px;text-align:right}
+@media(max-width:560px){.row .rc{display:none}}
+
+/* ---------- empty state ---------- */
+.blank{
+  border:1.5px dashed var(--alu-line);border-radius:2px;background:var(--card);
+  padding:clamp(30px,7vw,64px) var(--pad);text-align:center;
+}
+.blank h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;
+  font-size:clamp(22px,4.5vw,30px);margin:0 0 8px}
+.blank p{color:var(--slate);margin:0 auto 20px;max-width:46ch}
+.blank .row2{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- drawer / form ---------- */
+.scrim{
+  position:fixed;inset:0;background:rgba(22,36,44,.55);
+  display:none;z-index:40;
+}
+.scrim.on{display:block}
+.drawer{
+  position:fixed;z-index:50;top:0;right:0;bottom:0;width:min(468px,100%);
+  background:var(--alu);border-left:1.5px solid var(--ink);
+  display:flex;flex-direction:column;transform:translateX(101%);
+  transition:transform .26s ease;
+}
+.drawer.on{transform:none}
+.drawer header{
+  display:flex;align-items:center;gap:12px;padding:16px var(--pad);
+  border-bottom:1.5px solid var(--ink);background:var(--alu-deep);
+}
+.drawer header h2{margin:0;font-family:var(--display);text-transform:uppercase;
+  letter-spacing:.06em;font-size:22px}
+.drawer header .x{margin-left:auto;border:1.5px solid var(--ink);background:transparent;
+  width:32px;height:32px;border-radius:2px;line-height:1;font-size:17px}
+.drawer header .x:hover{background:var(--ink);color:var(--alu)}
+.dbody{overflow:auto;padding:18px var(--pad) 24px;flex:1}
+.dfoot{
+  display:flex;gap:10px;padding:14px var(--pad);
+  border-top:1.5px solid var(--ink);background:var(--alu-deep);
+}
+.dfoot .btn-key{flex:1}
+.field{margin-bottom:16px}
+.field>label{
+  display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--slate);margin-bottom:5px;
+}
+.field input[type=text],.field input[type=number],.field textarea,.field select{
+  width:100%;font-family:var(--body);font-size:15px;color:var(--ink);
+  background:var(--card);border:1.5px solid var(--ink);border-radius:2px;padding:10px 11px;
+  text-transform:none;letter-spacing:normal;
+}
+.field textarea{resize:vertical;min-height:84px;line-height:1.45}
+.pair{display:flex;gap:10px}
+.pair .field{flex:1}
+.pair .field.narrow{flex:0 0 104px}
+.pair .field.narrow select{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;padding:10px 6px}
+.drop{
+  border:1.5px dashed var(--ink);border-radius:2px;background:var(--card);
+  aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden;position:relative;
+  text-align:center;padding:14px;
+}
+.drop.has{border-style:solid;padding:0}
+.drop img{width:100%;height:100%;object-fit:cover;display:block}
+.drop .hint{color:var(--slate);font-size:13px}
+.drop .hint b{display:block;font-family:var(--display);text-transform:uppercase;
+  letter-spacing:.07em;font-size:16px;color:var(--ink);margin-bottom:3px}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop.has input[type=file]{cursor:pointer}
+.shot-tools{display:flex;gap:8px;margin-top:8px}
+.err{color:var(--danger);font-size:12.5px;margin:-8px 0 14px;display:none}
+.err.on{display:block}
+
+/* ---------- footer / notices ---------- */
+.notice{
+  border:1.5px solid var(--ink);background:var(--signal);border-radius:2px;
+  padding:11px 13px;margin:0 0 18px;font-size:13px;display:none;
+}
+.notice.on{display:block}
+.notice b{font-family:var(--display);text-transform:uppercase;letter-spacing:.07em}
+.tools{
+  border-top:1px solid var(--alu-line);margin-top:34px;padding:16px 0 0;
+  display:flex;flex-wrap:wrap;gap:9px;align-items:center;
+}
+.tools .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--slate);margin-right:4px}
+.tools .spacer{flex:1}
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translate(-50%,90px);
+  background:var(--ink);color:var(--alu);border-radius:2px;
+  padding:11px 16px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;
+  text-transform:uppercase;z-index:60;transition:transform .25s ease;
+  box-shadow:0 6px 22px rgba(22,36,44,.3);
+}
+.toast.on{transform:translate(-50%,0)}
+.hidden{display:none !important}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast-in">
+    <div class="mark">
+      <h1>Gear <em>Locker</em></h1>
+      <p>Everything you own, where it lives, and what it weighs.</p>
+    </div>
+    <div class="mast-actions">
+      <button class="btn btn-key" id="addBtn">+ Add item</button>
+    </div>
+  </div>
+</header>
+
+<section class="rail">
+  <div class="wrap">
+    <div class="tally">
+      <span><b id="tItems">0</b> <span class="code">items</span></span>
+      <span><b id="tCats">0</b> <span class="code">categories</span></span>
+      <span><b id="tWeight">—</b> <span class="code" id="tWeightUnit">total</span></span>
+      <button class="btn btn-quiet unit-flip" id="unitBtn">Show in lb / oz</button>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="Share of items by category"></div>
+    <div class="bar-key code" id="barKey"></div>
+  </div>
+</section>
+
+<div class="wrap controls">
+  <div class="control-row">
+    <div class="search">
+      <input id="q" type="search" placeholder="Search name, brand, or description" aria-label="Search gear">
+    </div>
+    <select id="sort" aria-label="Sort by">
+      <option value="added">Newest first</option>
+      <option value="name">Item name A–Z</option>
+      <option value="brand">Brand A–Z</option>
+      <option value="cat">Category</option>
+      <option value="heavy">Heaviest first</option>
+      <option value="light">Lightest first</option>
+    </select>
+    <div class="seg" role="group" aria-label="View">
+      <button id="vGrid" aria-pressed="true">Grid</button>
+      <button id="vList" aria-pressed="false">List</button>
+    </div>
+  </div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<main class="wrap">
+  <div class="notice" id="notice"></div>
+  <div id="stage"></div>
+
+  <div class="tools">
+    <span class="lbl">Your data</span>
+    <button class="btn btn-quiet" id="expJson">Download backup</button>
+    <button class="btn btn-quiet" id="impBtn">Restore backup</button>
+    <button class="btn btn-quiet" id="expCsv">Export spreadsheet</button>
+    <input type="file" id="impFile" accept="application/json,.json" class="hidden">
+    <span class="spacer"></span>
+    <span class="code" id="storeNote"></span>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+  <header>
+    <h2 id="dTitle">Add item</h2>
+    <button class="x" id="dClose" aria-label="Close">✕</button>
+  </header>
+  <div class="dbody">
+    <div class="field">
+      <label for="fPhoto">Photo</label>
+      <div class="drop" id="drop">
+        <img id="preview" alt="" class="hidden">
+        <div class="hint" id="dropHint"><b>Add a photo</b>Tap to choose, or drag one here</div>
+        <input type="file" id="fPhoto" accept="image/*">
+      </div>
+      <div class="shot-tools hidden" id="shotTools">
+        <button class="btn btn-quiet" id="dropClear">Remove photo</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="fCat">Category</label>
+      <select id="fCat"></select>
+    </div>
+    <div class="field hidden" id="newCatField">
+      <label for="fNewCat">New category name</label>
+      <input type="text" id="fNewCat" placeholder="e.g. Packrafting" maxlength="28">
+    </div>
+
+    <div class="field">
+      <label for="fBrand">Brand</label>
+      <input type="text" id="fBrand" placeholder="e.g. Osprey" maxlength="60">
+    </div>
+
+    <div class="field">
+      <label for="fName">Item name</label>
+      <input type="text" id="fName" placeholder="e.g. Atmos AG 65" maxlength="90">
+    </div>
+    <p class="err" id="errName">Give the item a name so you can find it later.</p>
+
+    <div class="pair">
+      <div class="field">
+        <label for="fWeight">Weight <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="number" id="fWeight" min="0" step="0.01" placeholder="0">
+      </div>
+      <div class="field narrow">
+        <label for="fUnit">Unit</label>
+        <select id="fUnit">
+          <option value="g">g</option>
+          <option value="kg">kg</option>
+          <option value="oz">oz</option>
+          <option value="lb">lb</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="fDesc">Description</label>
+      <textarea id="fDesc" placeholder="Size, colour, condition, where you store it, what trips it's for…" maxlength="1200"></textarea>
+    </div>
+
+    <button class="btn btn-danger hidden" id="delBtn">Delete this item</button>
+  </div>
+  <div class="dfoot">
+    <button class="btn btn-key" id="saveBtn">Save item</button>
+    <button class="btn" id="cancelBtn">Cancel</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. Categories
+   ============================================================ */
+const BASE_CATS = [
+  ["PCK","Backpacks"],
+  ["SHL","Shelter & Tents"],
+  ["SLP","Sleep System"],
+  ["CKG","Cooking"],
+  ["HYD","Hydration"],
+  ["CLO","Clothing"],
+  ["FTW","Footwear"],
+  ["NAV","Navigation"],
+  ["LGT","Lighting"],
+  ["SAF","Safety & First Aid"],
+  ["TLS","Tools & Repair"],
+  ["ELC","Electronics"],
+  ["CLB","Climbing"],
+  ["WTR","Water Sports"],
+  ["SNW","Winter & Snow"],
+  ["MSC","Other"]
+];
+const SWATCH = ["#2E5A4B","#E9B10C","#5A6E7A","#A63A28","#3D6E8C","#7A6A3F",
+                "#8C4A6B","#4A7A2E","#6B5B95","#B3762A","#2F7D7D","#8A8A5C",
+                "#93493F","#3B5E9B","#6E7B4E","#7C7C86"];
+
+let customCats = [];
+const allCats = () => BASE_CATS.concat(customCats);
+const catName = c => (allCats().find(x => x[0] === c) || [c, c])[1];
+const catColor = c => {
+  const i = allCats().findIndex(x => x[0] === c);
+  return SWATCH[(i < 0 ? 0 : i) % SWATCH.length];
+};
+function makeCode(name){
+  const base = (name.replace(/[^a-z]/gi,"").toUpperCase() + "XXX").slice(0,3);
+  const taken = new Set(allCats().map(c => c[0]));
+  if (!taken.has(base)) return base;
+  for (let i = 2; i < 99; i++){ const t = base.slice(0,2) + i; if (!taken.has(t)) return t; }
+  return "C" + Date.now().toString(36).slice(-2).toUpperCase();
+}
+
+/* ============================================================
+   2. Weight helpers — everything is stored in grams
+   ============================================================ */
+const TO_G = { g:1, kg:1000, oz:28.349523125, lb:453.59237 };
+let metric = true;
+
+function fmtWeight(g){
+  if (!g) return "—";
+  if (metric) return g < 1000 ? Math.round(g) + " g" : (g/1000).toFixed(g < 10000 ? 2 : 1) + " kg";
+  const oz = g / TO_G.oz;
+  if (oz < 16) return (Math.round(oz*10)/10) + " oz";
+  const lb = g / TO_G.lb;
+  return lb.toFixed(lb < 10 ? 2 : 1) + " lb";
+}
+const fmtTotal = g => !g ? "—" : (metric ? (g/1000).toFixed(2) : (g/TO_G.lb).toFixed(2));
+
+/* ============================================================
+   3. Talking to the server
+   ============================================================ */
+let online = false;
+
+async function api(path, body){
+  const res = await fetch("/api/" + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e){ /* fall through */ }
+  if (!res.ok) throw new Error((data && data.error) || ("server said " + res.status));
+  return data;
+}
+function adopt(state){
+  if (!state) return;
+  if (Array.isArray(state.items)) items = state.items;
+  if (Array.isArray(state.customCats)) customCats = state.customCats;
+  if (typeof state.metric === "boolean") metric = state.metric;
+}
+/* Any write failure means the terminal window probably closed. */
+function writeFailed(e){
+  console.error(e);
+  toast("Not saved — is the server still running?");
+  offline(String(e && e.message || e));
+}
+
+/* ============================================================
+   4. App state
+   ============================================================ */
+let items = [];
+let filterCat = "ALL", query = "", sortBy = "added", view = "grid", editing = null;
+let photoState = { mode: "none", data: null };   // none | keep | new
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const photoUrl = it => "/photos/" + encodeURIComponent(it.id) + ".jpg?v=" + (it.updated || 0);
+
+let toastTimer;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 2800);
+}
+function offline(detail){
+  online = false;
+  $("storeNote").textContent = "Server not reachable";
+  const n = $("notice");
+  n.innerHTML = "<b>No server.</b> Start it in a terminal with <code>python3 gear.py</code> "
+    + "from the folder holding this file, then reload this page."
+    + (detail ? " <span style=\"opacity:.7\">(" + esc(detail) + ")</span>" : "");
+  n.classList.add("on");
+}
+
+/* ============================================================
+   5. Filtering + sorting
+   ============================================================ */
+function visible(){
+  const q = query.trim().toLowerCase();
+  const out = items.filter(it => {
+    if (filterCat !== "ALL" && it.cat !== filterCat) return false;
+    if (!q) return true;
+    return (it.name + " " + it.brand + " " + it.desc + " " + catName(it.cat))
+      .toLowerCase().includes(q);
+  });
+  const byName = (a,b) => a.name.localeCompare(b.name, undefined, { sensitivity:"base" });
+  const cmp = {
+    added: (a,b) => b.added - a.added,
+    name:  byName,
+    brand: (a,b) => (a.brand||"~").localeCompare(b.brand||"~", undefined, { sensitivity:"base" }) || byName(a,b),
+    cat:   (a,b) => catName(a.cat).localeCompare(catName(b.cat)) || byName(a,b),
+    heavy: (a,b) => (b.g||0) - (a.g||0) || byName(a,b),
+    light: (a,b) => (a.g||Infinity) - (b.g||Infinity) || byName(a,b)
+  }[sortBy];
+  return out.sort(cmp);
+}
+
+/* ============================================================
+   6. Render
+   ============================================================ */
+function render(){
+  const shown = visible();
+
+  /* --- ledger rail: reflects what you're currently looking at --- */
+  const totalG = shown.reduce((s,i) => s + (i.g||0), 0);
+  const counts = {};
+  shown.forEach(i => counts[i.cat] = (counts[i.cat]||0) + 1);
+  const keys = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+
+  $("tItems").textContent  = shown.length;
+  $("tCats").textContent   = keys.length;
+  $("tWeight").textContent = fmtTotal(totalG);
+  $("tWeightUnit").textContent = totalG ? (metric ? "kg total" : "lb total") : "total";
+  $("unitBtn").textContent = metric ? "Show in lb / oz" : "Show in g / kg";
+
+  $("bar").innerHTML = shown.length
+    ? keys.map(c => `<i style="width:${(counts[c]/shown.length*100).toFixed(2)}%;background:${catColor(c)}" title="${esc(catName(c))}"></i>`).join("")
+    : "";
+  $("barKey").innerHTML = keys.slice(0,8).map(c =>
+    `<span><s style="background:${catColor(c)}"></s>${esc(c)} ${counts[c]}</span>`).join("");
+
+  /* --- category chips: only categories you actually own --- */
+  const own = {};
+  items.forEach(i => own[i.cat] = (own[i.cat]||0) + 1);
+  const ownKeys = Object.keys(own).sort((a,b) => catName(a).localeCompare(catName(b)));
+  $("chips").innerHTML = items.length
+    ? [`<button class="chip" data-cat="ALL" aria-pressed="${filterCat==="ALL"}">
+          <span class="nm">All gear</span><span class="n">${items.length}</span></button>`]
+      .concat(ownKeys.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${filterCat===c}">
+          <s class="swatch" style="background:${catColor(c)}"></s>
+          <span class="nm">${esc(catName(c))}</span><span class="n">${esc(c)} ${own[c]}</span></button>`))
+      .join("")
+    : "";
+
+  /* --- stage --- */
+  const stage = $("stage");
+  if (!items.length){
+    stage.innerHTML = `<div class="blank">
+      <h2>The locker is empty</h2>
+      <p>Add your first piece of kit — a pack, a stove, that tent in the garage — and it will show up here, sortable and searchable.</p>
+      <div class="row2">
+        <button class="btn btn-key" data-act="add">+ Add your first item</button>
+        <button class="btn btn-quiet" data-act="sample">Load 8 example items</button>
+      </div></div>`;
+    return;
+  }
+  if (!shown.length){
+    stage.innerHTML = `<div class="blank">
+      <h2>Nothing matches</h2>
+      <p>No gear fits that search and filter. Clear them to see the whole locker again.</p>
+      <div class="row2"><button class="btn" data-act="clear">Clear search and filter</button></div></div>`;
+    return;
+  }
+
+  if (view === "grid"){
+    stage.innerHTML = `<div class="grid">` + shown.map(it => `
+      <button class="item" data-id="${esc(it.id)}">
+        ${it.photo
+          ? `<div class="shot"><img src="${photoUrl(it)}" alt="${esc(it.name)}" loading="lazy"></div>`
+          : `<div class="shot empty"><span>${esc(it.cat)}</span></div>`}
+        <div class="tag">
+          ${it.brand ? `<span class="brand">${esc(it.brand)}</span>` : ``}
+          <span class="name">${esc(it.name)}</span>
+          ${it.desc ? `<span class="desc">${esc(it.desc)}</span>` : ``}
+          <span class="foot">
+            <span class="cat"><s class="swatch" style="background:${catColor(it.cat)};width:8px;height:8px;display:inline-block;border:1px solid var(--ink)"></s>${esc(it.cat)}</span>
+            <span class="wt">${it.g ? esc(fmtWeight(it.g)) : ""}</span>
+          </span>
+        </div>
+      </button>`).join("") + `</div>`;
+  } else {
+    stage.innerHTML = `<div class="list">` + shown.map(it => `
+      <button class="row" data-id="${esc(it.id)}">
+        ${it.photo
+          ? `<img class="th" src="${photoUrl(it)}" alt="" loading="lazy">`
+          : `<span class="th empty">${esc(it.cat)}</span>`}
+        <span class="who"><b>${esc(it.name)}</b><i>${esc(it.brand || "no brand")}</i></span>
+        <span class="rc">${esc(catName(it.cat))}</span>
+        <span class="rw">${it.g ? esc(fmtWeight(it.g)) : "—"}</span>
+      </button>`).join("") + `</div>`;
+  }
+}
+
+/* ============================================================
+   7. Photos — shrunk in the browser before they're sent
+   ============================================================ */
+function compress(file, max = 1000, q = 0.82){
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) return reject(new Error("not an image"));
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width  = Math.max(1, Math.round(img.width  * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("unreadable image")); };
+    img.src = url;
+  });
+}
+function showPhoto(src, mode){
+  photoState = { mode: mode, data: mode === "new" ? src : null };
+  const p = $("preview"), d = $("drop");
+  if (src){
+    p.src = src; p.classList.remove("hidden");
+    $("dropHint").classList.add("hidden"); d.classList.add("has");
+    $("shotTools").classList.remove("hidden");
+  } else {
+    p.removeAttribute("src"); p.classList.add("hidden");
+    $("dropHint").classList.remove("hidden"); d.classList.remove("has");
+    $("shotTools").classList.add("hidden");
+    $("fPhoto").value = "";
+  }
+}
+
+/* ============================================================
+   8. Drawer
+   ============================================================ */
+function buildCatSelect(selected){
+  $("fCat").innerHTML = allCats()
+    .map(([c,n]) => `<option value="${esc(c)}"${c===selected?" selected":""}>${esc(n)} · ${esc(c)}</option>`)
+    .join("") + `<option value="__new">+ New category…</option>`;
+  $("newCatField").classList.add("hidden");
+}
+function openDrawer(item){
+  editing = item || null;
+  $("dTitle").textContent = item ? "Edit item" : "Add item";
+  $("saveBtn").textContent = item ? "Save changes" : "Save item";
+  $("delBtn").classList.toggle("hidden", !item);
+  $("errName").classList.remove("on");
+
+  buildCatSelect(item ? item.cat : (filterCat !== "ALL" ? filterCat : "PCK"));
+  $("fBrand").value = item ? item.brand : "";
+  $("fName").value  = item ? item.name  : "";
+  $("fDesc").value  = item ? item.desc  : "";
+  $("fNewCat").value = "";
+  if (item && item.g){
+    if (metric){
+      $("fUnit").value = item.g < 1000 ? "g" : "kg";
+      $("fWeight").value = item.g < 1000 ? Math.round(item.g) : +(item.g/1000).toFixed(3);
+    } else {
+      $("fUnit").value = "oz";
+      $("fWeight").value = +(item.g/TO_G.oz).toFixed(2);
+    }
+  } else {
+    $("fWeight").value = ""; $("fUnit").value = metric ? "g" : "oz";
+  }
+  showPhoto(item && item.photo ? photoUrl(item) : null, item && item.photo ? "keep" : "none");
+
+  $("scrim").classList.add("on");
+  $("drawer").classList.add("on");
+  setTimeout(() => $("fName").focus(), 260);
+}
+function closeDrawer(){
+  $("scrim").classList.remove("on");
+  $("drawer").classList.remove("on");
+  editing = null; photoState = { mode:"none", data:null };
+  $("addBtn").focus();
+}
+
+async function save(){
+  const name = $("fName").value.trim();
+  if (!name){ $("errName").classList.add("on"); $("fName").focus(); return; }
+
+  let cat = $("fCat").value;
+  let newCat = null;
+  if (cat === "__new"){
+    const nm = $("fNewCat").value.trim();
+    if (!nm){ $("fNewCat").focus(); return; }
+    newCat = [makeCode(nm), nm];
+    cat = newCat[0];
+  }
+  const raw = parseFloat($("fWeight").value);
+  const item = {
+    id: editing ? editing.id : "",
+    added: editing ? editing.added : Date.now(),
+    cat, name,
+    brand: $("fBrand").value.trim(),
+    desc:  $("fDesc").value.trim(),
+    g: isFinite(raw) && raw > 0 ? raw * TO_G[$("fUnit").value] : 0,
+    photo: photoState.mode === "new" ? true
+         : photoState.mode === "keep" ? !!(editing && editing.photo) : false
+  };
+
+  const btn = $("saveBtn");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    if (newCat){
+      customCats = customCats.concat([newCat]);
+      adopt(await api("meta", { customCats }));
+    }
+    const payload = { item };
+    if (photoState.mode === "new") payload.photoData = photoState.data;
+    adopt(await api("save", payload));
+    const wasEditing = !!editing;
+    closeDrawer(); render();
+    toast(wasEditing ? "Saved" : "Added to locker");
+  } catch (e){
+    writeFailed(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editing ? "Save changes" : "Save item";
+  }
+}
+async function remove(){
+  if (!editing) return;
+  if (!confirm(`Delete "${editing.name}" from the locker? This can't be undone.`)) return;
+  try {
+    adopt(await api("delete", { id: editing.id }));
+    closeDrawer(); render(); toast("Deleted");
+  } catch (e){ writeFailed(e); }
+}
+
+/* ============================================================
+   9. Backup, restore, spreadsheet
+   ============================================================ */
+function exportCsv(){
+  const cell = v => `"${String(v == null ? "" : v).replace(/"/g,'""')}"`;
+  const rows = [["Category","Code","Brand","Item name","Description","Weight (g)","Weight (oz)","Has photo","Added"]];
+  visible().forEach(i => rows.push([
+    catName(i.cat), i.cat, i.brand, i.name, i.desc,
+    i.g ? Math.round(i.g) : "", i.g ? (i.g/TO_G.oz).toFixed(2) : "",
+    i.photo ? "yes" : "no", new Date(i.added).toISOString().slice(0,10)
+  ]));
+  const blob = new Blob([rows.map(r => r.map(cell).join(",")).join("\r\n")], { type:"text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "gear-locker-" + new Date().toISOString().slice(0,10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Spreadsheet downloaded");
+}
+async function importJson(file){
+  try {
+    const data = JSON.parse(await file.text());
+    const payload = Array.isArray(data) ? { items:data } : data;
+    const state = await api("import", { items: payload.items, customCats: payload.customCats });
+    adopt(state); render();
+    const n = state.imported || 0;
+    toast(n + " item" + (n === 1 ? "" : "s") + " restored");
+  } catch (e){
+    console.error(e);
+    alert("That file couldn't be restored. Pick the .json file you saved with “Download backup”.");
+  }
+}
+
+/* ============================================================
+   10. Example data
+   ============================================================ */
+const SAMPLES = [
+  ["PCK","Osprey","Atmos AG 65","65 L internal frame pack, medium torso. Anti-gravity suspension.",2010],
+  ["SHL","Big Agnes","Copper Spur HV UL2","Freestanding two-person, three-season tent. Footprint in the same stuff sack.",1360],
+  ["SLP","Therm-a-Rest","NeoAir XLite","Inflatable sleeping pad, regular. Patch kit taped inside the sack.",354],
+  ["CKG","MSR","PocketRocket 2","Canister stove. Lives in the 1.3 L titanium pot with a lighter.",73],
+  ["HYD","Nalgene","Wide Mouth 1 L","Two of them. One marked with volume lines for cooking.",178],
+  ["HYD","Sawyer","Squeeze Filter","Hollow-fibre filter with two pouches. Backflush syringe in the repair kit.",85],
+  ["LGT","Black Diamond","Spot 400","Waterproof headlamp, red-light mode. Spare AAAs in the lid pocket.",86],
+  ["CLO","Patagonia","Nano Puff Hoody","Synthetic insulated jacket, men's medium, navy. Packs into its own pocket.",337]
+];
+async function loadSamples(){
+  try {
+    const state = await api("import", {
+      items: SAMPLES.map(([cat,brand,name,desc,g]) => ({ cat, brand, name, desc, g }))
+    });
+    adopt(state); render(); toast("Example items loaded");
+  } catch (e){ writeFailed(e); }
+}
+
+/* ============================================================
+   11. Wiring
+   ============================================================ */
+$("addBtn").onclick = () => openDrawer(null);
+$("dClose").onclick = closeDrawer;
+$("cancelBtn").onclick = closeDrawer;
+$("scrim").onclick = closeDrawer;
+$("saveBtn").onclick = save;
+$("delBtn").onclick = remove;
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("drawer").classList.contains("on")) closeDrawer();
+});
+
+$("fCat").onchange = e => {
+  const isNew = e.target.value === "__new";
+  $("newCatField").classList.toggle("hidden", !isNew);
+  if (isNew) $("fNewCat").focus();
+};
+$("fName").addEventListener("input", () => $("errName").classList.remove("on"));
+
+$("fPhoto").onchange = async e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  try { showPhoto(await compress(f), "new"); }
+  catch { toast("Couldn't read that image"); showPhoto(null, "none"); }
+};
+$("dropClear").onclick = () => showPhoto(null, "none");
+["dragover","dragenter"].forEach(ev =>
+  $("drop").addEventListener(ev, e => e.preventDefault()));
+$("drop").addEventListener("drop", async e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  try { showPhoto(await compress(f), "new"); } catch { toast("Couldn't read that image"); }
+});
+
+$("q").oninput = e => { query = e.target.value; render(); };
+$("sort").onchange = e => { sortBy = e.target.value; render(); };
+$("vGrid").onclick = () => setView("grid");
+$("vList").onclick = () => setView("list");
+function setView(v){
+  view = v;
+  $("vGrid").setAttribute("aria-pressed", v === "grid");
+  $("vList").setAttribute("aria-pressed", v === "list");
+  render();
+}
+$("unitBtn").onclick = async () => {
+  metric = !metric; render();
+  try { await api("meta", { metric }); } catch (e){ console.error(e); }
+};
+
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  filterCat = b.dataset.cat; render();
+});
+$("stage").addEventListener("click", e => {
+  const act = e.target.closest("[data-act]");
+  if (act){
+    if (act.dataset.act === "add") openDrawer(null);
+    if (act.dataset.act === "sample") loadSamples();
+    if (act.dataset.act === "clear"){ query = ""; $("q").value = ""; filterCat = "ALL"; render(); }
+    return;
+  }
+  const card = e.target.closest("[data-id]");
+  if (card) openDrawer(items.find(i => i.id === card.dataset.id));
+});
+
+$("expJson").onclick = () => { window.location.href = "/api/export"; };
+$("expCsv").onclick  = exportCsv;
+$("impBtn").onclick  = () => $("impFile").click();
+$("impFile").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importJson(f);
+  e.target.value = "";
+};
+
+/* ============================================================
+   12. Boot
+   ============================================================ */
+(async function boot(){
+  try {
+    const res = await fetch("/api/state");
+    if (!res.ok) throw new Error("server said " + res.status);
+    const state = await res.json();
+    adopt(state);
+    online = true;
+    $("storeNote").textContent = "Saving to " + (state.dataFile || "data/gear.json");
+  } catch (e){
+    offline(location.protocol === "file:" ? "opened as a file, not through the server" : "");
+  }
+  render();
+})();
+</script>
+</body>
+</html>
