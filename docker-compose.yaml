@@ -16,7 +16,7 @@ services:
 
     # Change the left-hand number to serve on a different port.
     ports:
-      - "${GEAR_PORT:-8000}:8000"
+      - "${GEAR_PORT:-8090}:8000"
 
     # A plain folder, not a named volume, so gear.json stays somewhere
     # you can actually open and back up.
