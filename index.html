@@ -198,7 +198,21 @@ main{padding-bottom:64px}
 }
 .tag{padding:11px 12px 13px;display:flex;flex-direction:column;gap:3px;flex:1}
 .tag .brand{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--slate)}
+  text-transform:uppercase;color:var(--slate);display:flex;align-items:center;gap:6px;min-width:0}
+.tag .brand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bicon{
+  width:14px;height:14px;flex:0 0 14px;object-fit:contain;
+  background:#fff;border:1px solid var(--alu-line);border-radius:2px;padding:1px;
+}
+.row .who i .bicon{width:12px;height:12px;flex-basis:12px;vertical-align:-2px;margin-right:5px}
+.domain-row{display:flex;gap:8px;align-items:center}
+.domain-row input{flex:1;min-width:0}
+.domain-row .bicon{width:34px;height:34px;flex-basis:34px;padding:3px;border-color:var(--ink)}
+.hint-line{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--slate);margin:6px 0 0;min-height:14px;
+}
+.hint-line.warn{color:var(--danger)}
 .tag .name{font-family:var(--display);text-transform:uppercase;font-weight:700;
   font-size:18px;letter-spacing:.02em;line-height:1.08}
 .tag .desc{display:block;font-size:12.5px;color:var(--slate);margin:4px 0 0;
@@ -388,6 +402,7 @@ main{padding-bottom:64px}
     <button class="btn btn-quiet" id="expJson">Download backup</button>
     <button class="btn btn-quiet" id="impBtn">Restore backup</button>
     <button class="btn btn-quiet" id="expCsv">Export spreadsheet</button>
+    <button class="btn btn-quiet" id="brandBtn">Fetch brand logos</button>
     <input type="file" id="impFile" accept="application/json,.json" class="hidden">
     <span class="spacer"></span>
     <span class="code" id="storeNote"></span>
@@ -426,6 +441,16 @@ main{padding-bottom:64px}
     <div class="field">
       <label for="fBrand">Brand</label>
       <input type="text" id="fBrand" placeholder="e.g. Osprey" maxlength="60">
+    </div>
+
+    <div class="field">
+      <label for="fDomain">Brand website <span style="text-transform:none;letter-spacing:0">(for the logo)</span></label>
+      <div class="domain-row">
+        <img id="bPreview" class="bicon hidden" alt="">
+        <input type="text" id="fDomain" placeholder="osprey.com" maxlength="80">
+        <button class="btn btn-quiet" id="bFetch" type="button">Find</button>
+      </div>
+      <p class="hint-line" id="bStatus"></p>
     </div>
 
     <div class="field">
@@ -565,6 +590,13 @@ const esc = s => String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const photoUrl = it => "/photos/" + encodeURIComponent(it.id) + ".jpg?v=" + (it.updated || 0);
 
+/* Mirrors domain_slug() in gear.py: osprey.com -> osprey-com */
+const slugOf = d => String(d || "").toLowerCase().replace(/[^a-z0-9.-]/g,"").slice(0,60).replace(/\./g,"-");
+/* If the icon was never fetched the request 404s and we drop the element. */
+const brandIcon = it => it.domain
+  ? `<img class="bicon" src="/brands/${esc(slugOf(it.domain))}" alt="" loading="lazy" onerror="this.remove()">`
+  : "";
+
 let toastTimer;
 function toast(msg){
   const t = $("toast");
@@ -669,7 +701,7 @@ function render(){
           ? `<div class="shot"><img src="${photoUrl(it)}" alt="${esc(it.name)}" loading="lazy"></div>`
           : `<div class="shot empty"><span>${esc(it.cat)}</span></div>`}
         <div class="tag">
-          ${it.brand ? `<span class="brand">${esc(it.brand)}</span>` : ``}
+          ${it.brand ? `<span class="brand">${brandIcon(it)}<span>${esc(it.brand)}</span></span>` : ``}
           <span class="name">${esc(it.name)}</span>
           ${it.desc ? `<span class="desc">${esc(it.desc)}</span>` : ``}
           <span class="foot">
@@ -684,7 +716,7 @@ function render(){
         ${it.photo
           ? `<img class="th" src="${photoUrl(it)}" alt="" loading="lazy">`
           : `<span class="th empty">${esc(it.cat)}</span>`}
-        <span class="who"><b>${esc(it.name)}</b><i>${esc(it.brand || "no brand")}</i></span>
+        <span class="who"><b>${esc(it.name)}</b><i>${it.brand ? brandIcon(it) : ""}${esc(it.brand || "no brand")}</i></span>
         <span class="rc">${esc(catName(it.cat))}</span>
         <span class="rw">${it.g ? esc(fmtWeight(it.g)) : "—"}</span>
       </button>`).join("") + `</div>`;
@@ -744,6 +776,7 @@ function openDrawer(item){
 
   buildCatSelect(item ? item.cat : (filterCat !== "ALL" ? filterCat : "PCK"));
   $("fBrand").value = item ? item.brand : "";
+  setDomain(item ? item.domain : "", "");
   $("fName").value  = item ? item.name  : "";
   $("fDesc").value  = item ? item.desc  : "";
   $("fNewCat").value = "";
@@ -789,6 +822,7 @@ async function save(){
     added: editing ? editing.added : Date.now(),
     cat, name,
     brand: $("fBrand").value.trim(),
+    domain: $("fDomain").value.trim(),
     desc:  $("fDesc").value.trim(),
     g: isFinite(raw) && raw > 0 ? raw * TO_G[$("fUnit").value] : 0,
     photo: photoState.mode === "new" ? true
@@ -881,6 +915,82 @@ async function loadSamples(){
 }
 
 /* ============================================================
+   10b. Brand logos
+   ============================================================ */
+function showBrandIcon(domain){
+  const img = $("bPreview");
+  if (!domain){ img.classList.add("hidden"); img.removeAttribute("src"); return; }
+  img.onload  = () => img.classList.remove("hidden");
+  img.onerror = () => img.classList.add("hidden");
+  img.src = "/brands/" + slugOf(domain) + "?t=" + Date.now();
+}
+function setDomain(domain, status){
+  $("fDomain").value = domain || "";
+  const line = $("bStatus");
+  line.textContent = status || "";
+  line.classList.remove("warn");
+  showBrandIcon(domain);
+}
+function say(msg, bad){
+  const line = $("bStatus");
+  line.textContent = msg;
+  line.classList.toggle("warn", !!bad);
+}
+async function lookupBrand(){
+  const brand  = $("fBrand").value.trim();
+  const domain = $("fDomain").value.trim();
+  if (!brand && !domain){ say("Enter a brand first", true); return; }
+
+  const btn = $("bFetch");
+  btn.disabled = true; say("Looking\u2026");
+  try {
+    const r = await api("brand", { brand, domain });
+    $("fDomain").value = r.domain || "";
+    if (r.icon){
+      say(r.cached ? "Logo already saved" : "Logo saved");
+      showBrandIcon(r.domain);
+    } else {
+      say(r.reason || "No logo found \u2014 try editing the address", true);
+      showBrandIcon("");
+    }
+  } catch (e){
+    say("Couldn't reach the server", true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+async function fetchAllBrands(){
+  const seen = new Map();
+  items.forEach(i => {
+    const key = (i.domain || i.brand || "").toLowerCase();
+    if (key && !seen.has(key)) seen.set(key, i);
+  });
+  const list = Array.from(seen.values());
+  if (!list.length){ toast("No brands to look up yet"); return; }
+
+  const btn = $("brandBtn");
+  const label = btn.textContent;
+  btn.disabled = true;
+  let found = 0, done = 0;
+  for (const it of list){
+    btn.textContent = "Fetching " + (++done) + "/" + list.length + "\u2026";
+    try {
+      const r = await api("brand", {
+        brand: it.brand, domain: it.domain, skipMisses: true, applyToItems: true
+      });
+      if (r.icon) found++;
+      if (r.state) adopt(r.state);
+    } catch (e){
+      writeFailed(e);
+      break;
+    }
+  }
+  btn.disabled = false; btn.textContent = label;
+  render();
+  toast(found + " of " + list.length + " brands have a logo");
+}
+
+/* ============================================================
    11. Wiring
    ============================================================ */
 $("addBtn").onclick = () => openDrawer(null);
@@ -899,6 +1009,14 @@ $("fCat").onchange = e => {
   if (isNew) $("fNewCat").focus();
 };
 $("fName").addEventListener("input", () => $("errName").classList.remove("on"));
+
+$("bFetch").onclick = lookupBrand;
+$("brandBtn").onclick = fetchAllBrands;
+/* Typing a brand and tabbing on looks it up, but never overrides a hand-typed address. */
+$("fBrand").addEventListener("change", () => {
+  if ($("fBrand").value.trim() && !$("fDomain").value.trim()) lookupBrand();
+});
+$("fDomain").addEventListener("change", () => showBrandIcon($("fDomain").value.trim()));
 
 $("fPhoto").onchange = async e => {
   const f = e.target.files && e.target.files[0];
