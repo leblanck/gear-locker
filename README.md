@@ -6,6 +6,8 @@ Categorise it, search it, see what it weighs, attach photos.
 No database and no dependencies — the server is one Python file using nothing
 but the standard library.
 
+![Gear Locker screenshot](/screenshot.png)
+
 ---
 
 ## Running it in Docker
